@@ -1,0 +1,72 @@
+# Codemagic 云端构建配置：在 macOS 机器上编译、签名、上传 TestFlight
+# 用法：
+#   1. 把整个 barspeed/ 推到 GitHub 私有仓库
+#   2. Codemagic 里 Add application → 选这个仓库 → 选 codemagic.yaml
+#   3. Teams → Integrations → Developer Portal 里加一个 App Store Connect API Key，名字必须等于下面的 BarSpeedASC
+#   4. Code signing identities 里选 distribution（Codemagic 会自动拉取/生成证书与描述文件）
+#   5. Start new build → 选 ios-release
+
+workflows:
+  ios-release:
+    name: BarSpeed iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: BarSpeedASC
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.barspeed.app
+      vars:
+        XCODE_PROJECT: "BarSpeed.xcodeproj"
+        XCODE_SCHEME: "BarSpeed"
+        BUNDLE_ID: "com.barspeed.app"
+        APP_STORE_APP_ID: ""          # 填 App Store Connect 里的 Apple ID（数字），第一版可以先留空
+      xcode: latest
+      ruby: default
+    scripts:
+      - name: 安装 XcodeGen
+        script: |
+          brew install xcodegen
+
+      - name: 安装签名文件
+        script: |
+          xcode-project use-profiles
+
+      - name: 生成 Xcode 工程
+        script: |
+          xcodegen generate
+
+      - name: 递增 Build 号
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 0)
+          NEXT=$((LATEST + 1))
+          echo "build number -> $NEXT"
+          xcode-project set-build-number "$XCODE_PROJECT" "$NEXT" --all-targets
+
+      - name: 单元自检（可选，先跑一遍语法/依赖）
+        script: |
+          xcodebuild -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug build CODE_SIGNING_ALLOWED=NO | xcbeautify || true
+
+      - name: 编译并导出 ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --config Release
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal
+        # 审核通过后想自动提交正式审核，把下面两行打开（第一版建议手动点提交）
+        # submit_to_app_store: true
+        # release_type: AFTER_APPROVAL
