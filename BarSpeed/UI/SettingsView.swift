@@ -168,7 +168,7 @@ struct SettingsView: View {
             let reps = s.reps.map { String(format: "%.3f", $0.meanVelocity) }.joined(separator: "|")
             csv += "\(f.string(from: s.date)),\(s.exercise.name),\(s.loadKG),\(s.repCount),"
             csv += "\(String(format: "%.3f", s.meanVelocity)),\(String(format: "%.3f", s.peakVelocity)),"
-            csv += "\(String(format: "%.3f", s.displacementM))\n"
+            csv += "\(String(format: "%.3f", s.displacementCM / 100))\n"
             _ = reps
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("BarSpeed-\(Int(Date().timeIntervalSince1970)).csv")
