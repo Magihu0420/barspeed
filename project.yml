@@ -38,7 +38,7 @@ targets:
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         # 自用包（只装自己手机、不上商店）：取消下一行注释，编译时定义 PERSONAL，
         # RootView 里会把 isPro 直接置 true，付费墙全部解锁。
-        # SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) PERSONAL
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) PERSONAL
 
 schemes:
   BarSpeed:
