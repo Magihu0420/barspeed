@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PaywallView: View {
     @EnvironmentObject var purchase: PurchaseManager
-    @Environment(.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
 
     private struct Feature: Identifiable {
         let id = UUID()
