@@ -1,0 +1,63 @@
+name: build-unsigned-ipa
+
+# 在 GitHub 免费的 macOS runner 上编出未签名 ipa。
+# 用法：仓库推到 GitHub 后 → Actions → build-unsigned-ipa → Run workflow
+# 产物：Artifacts 里的 BarSpeed-unsigned-ipa.zip（内含 .ipa）
+# 之后在 Windows 用 Sideloadly 用自己的 Apple ID 签名装进 iPhone。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 环境信息
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成 Xcode 工程
+        run: |
+          xcodegen generate
+          xcodebuild -list -project BarSpeed.xcodeproj
+
+      - name: 编译（不签名）
+        run: |
+          xcodebuild \
+            -project BarSpeed.xcodeproj \
+            -scheme BarSpeed \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/BarSpeed.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS=""
+
+      - name: 打包成 ipa
+        run: |
+          set -euo pipefail
+          mkdir -p build/Payload
+          cp -R "build/BarSpeed.xcarchive/Products/Applications/BarSpeed.app" build/Payload/
+          cd build
+          zip -qry BarSpeed-unsigned.ipa Payload
+          ls -lh BarSpeed-unsigned.ipa
+          unzip -l BarSpeed-unsigned.ipa | head -20
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarSpeed-unsigned-ipa
+          path: build/BarSpeed-unsigned.ipa
+          if-no-files-found: error
